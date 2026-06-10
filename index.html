@@ -172,8 +172,8 @@
         // Inicializar iconos
         lucide.createIcons();
 
-        // Estado de la aplicación ampliado con USDT y ajustado a la realidad actual
-        let rates = { USD: 565.00, EUR: 655.00, USDT: 770.00 };
+        // Estado de la aplicación ampliado con USDT y valores base normalizados
+        let rates = { USD: 40.50, EUR: 43.20, USDT: 44.00 };
         let isLoading = false;
         let isEditing = false;
 
@@ -249,72 +249,74 @@
             calculateAndRender();
         };
 
-        // Obtener tasas de la API (Actualizado a PyDolarVenezuela)
+        // Obtener tasas (NUEVO MÉTODO DIRECTO E INFALIBLE)
         const fetchRates = async () => {
             if (isLoading) return;
             isLoading = true;
             refreshIcon.classList.add('animate-spin');
             errorAlert.classList.add('hidden');
-            lastUpdated.textContent = 'Actualizando...';
+            lastUpdated.textContent = 'Conectando con el BCV...';
+
+            let updatedRates = { usd: null, eur: null, usdt: null };
 
             try {
-                // Función inteligente para extraer el precio sin depender de una estructura fija
-                const extractPrice = (obj, targetKeys) => {
-                    if (!obj || typeof obj !== 'object') return null;
-                    for (const key in obj) {
-                        if (targetKeys.includes(key.toLowerCase())) {
-                            if (typeof obj[key] === 'number') return obj[key];
-                            if (obj[key] && obj[key].price !== undefined) return parseFloat(obj[key].price);
-                            if (obj[key] && obj[key].value !== undefined) return parseFloat(obj[key].value);
-                        }
-                        const nested = extractPrice(obj[key], targetKeys);
-                        if (nested !== null) return nested;
-                    }
-                    return null;
-                };
-
-                // Conectamos a PyDolarVenezuela, la API más activa y precisa actualmente
-                const [bcvRes, binanceRes] = await Promise.all([
-                    fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv').catch(() => null),
-                    fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=binance').catch(() => null)
-                ]);
-
-                let isUpdated = false;
-
-                // Procesar datos del BCV
-                if (bcvRes && bcvRes.ok) {
-                    const bcvData = await bcvRes.json();
-                    const usdVal = extractPrice(bcvData, ['usd', 'dolar']);
-                    const eurVal = extractPrice(bcvData, ['eur', 'euro']);
-                    
-                    if (usdVal && usdVal > 0) { rates.USD = usdVal; isUpdated = true; }
-                    if (eurVal && eurVal > 0) { rates.EUR = eurVal; }
-                }
-
-                // Procesar datos de Binance/USDT
-                if (binanceRes && binanceRes.ok) {
-                    const binData = await binanceRes.json();
-                    const usdtVal = extractPrice(binData, ['usdt', 'binance', 'enparalelovzla', 'promedio']);
-                    if (usdtVal && usdtVal > 0) rates.USDT = usdtVal;
-                }
-
-                if (isUpdated) {
-                    const now = new Date();
-                    const timeStr = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute:'2-digit' });
-                    updateRatesUI(timeStr);
-                } else {
-                    throw new Error('No se pudo leer el formato de la API');
-                }
-
-            } catch (err) {
-                console.error("Error con la API:", err);
-                errorText.textContent = 'La conexión automática falló. Mostrando tasas de respaldo. Usa "Editar" para ajustarlas manualmente.';
-                errorAlert.classList.remove('hidden');
-                updateRatesUI('Modo Respaldo');
-            } finally {
-                isLoading = false;
-                refreshIcon.classList.remove('animate-spin');
+                // ESTRATEGIA 1: Leer directamente la web del BCV saltándose las APIs de terceros.
+                // Usamos AllOrigins como puente para evitar el bloqueo del navegador.
+                const proxyUrl = 'https://api.allorigins.win/get?url=';
+                const bcvUrl = encodeURIComponent('https://www.bcv.org.ve/');
+                const res = await fetch(proxyUrl + bcvUrl);
+                const data = await res.json();
+                
+                // Analizamos el HTML real de la página del BCV
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data.contents, 'text/html');
+                
+                const usdText = doc.querySelector('#dolar strong')?.innerText?.trim().replace(',', '.');
+                const eurText = doc.querySelector('#euro strong')?.innerText?.trim().replace(',', '.');
+                
+                if (usdText && !isNaN(parseFloat(usdText))) updatedRates.usd = parseFloat(usdText);
+                if (eurText && !isNaN(parseFloat(eurText))) updatedRates.eur = parseFloat(eurText);
+            } catch (e) {
+                console.warn("Fallo lectura directa del BCV, intentando respaldo...", e);
             }
+
+            // ESTRATEGIA 2: Si la página del BCV está caída, usamos DolarAPI como respaldo
+            if (!updatedRates.usd) {
+                try {
+                    const usdRes = await fetch('https://ve.dolarapi.com/v1/dolares/oficial').then(r=>r.json());
+                    const eurRes = await fetch('https://ve.dolarapi.com/v1/euros/oficial').then(r=>r.json());
+                    if (usdRes.promedio) updatedRates.usd = usdRes.promedio;
+                    if (eurRes.promedio) updatedRates.eur = eurRes.promedio;
+                } catch (e) {
+                    console.warn("Fallo DolarAPI.", e);
+                }
+            }
+
+            // OBTENER USDT: Consultar DolarApi para el promedio de Binance
+            try {
+                const usdtRes = await fetch('https://ve.dolarapi.com/v1/dolares/binance').then(r=>r.json());
+                if (usdtRes.promedio) updatedRates.usdt = usdtRes.promedio;
+            } catch (e) {
+                console.warn("Fallo USDT DolarAPI:", e);
+            }
+
+            // APLICAR LOS CAMBIOS
+            if (updatedRates.usd && updatedRates.usd > 0) {
+                rates.USD = updatedRates.usd;
+                if (updatedRates.eur) rates.EUR = updatedRates.eur;
+                if (updatedRates.usdt) rates.USDT = updatedRates.usdt;
+                
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute:'2-digit' });
+                updateRatesUI(timeStr);
+            } else {
+                errorText.textContent = 'No se pudo verificar la tasa actual. Usa el botón "Editar" para ingresarla manualmente.';
+                errorAlert.classList.remove('hidden');
+                updateRatesUI('Modo Manual Recomendado');
+            }
+
+            isLoading = false;
+            refreshIcon.classList.remove('animate-spin');
         };
 
         // Eventos de la calculadora
