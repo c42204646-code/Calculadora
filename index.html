@@ -4,16 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calculadora Comercial BCV</title>
-    <!-- Tailwind CSS para los estilos -->
+    <!-- Tailwind CSS para los estilos responsivos -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
+    <!-- Lucide Icons para la iconografía -->
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body class="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans text-slate-800">
 
     <div class="bg-white w-full max-w-md rounded-3xl shadow-xl overflow-hidden border border-gray-100">
         
-        <!-- Encabezado -->
+        <!-- Encabezado y Tasas -->
         <div class="bg-gradient-to-r from-blue-700 to-blue-900 p-4 sm:p-6 text-white">
             <div class="flex justify-between items-center mb-4">
                 <h1 class="text-lg sm:text-xl font-bold flex items-center gap-2">
@@ -22,7 +22,7 @@
                 </h1>
                 <button 
                     id="btnRefresh"
-                    class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                    class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors focus:outline-none"
                     title="Actualizar tasas"
                 >
                     <i data-lucide="refresh-cw" class="w-[18px] h-[18px]" id="refreshIcon"></i>
@@ -33,17 +33,16 @@
                 <div class="flex justify-between items-center mb-3">
                     <span class="text-xs sm:text-sm font-medium text-blue-100">Tasas del Día (Bs)</span>
                     
-                    <!-- Botón Editar -->
+                    <!-- Botones de Edición -->
                     <button id="btnEdit" class="text-blue-200 hover:text-white transition flex items-center gap-1 text-xs bg-white/10 px-2 py-1 rounded-lg">
                         <i data-lucide="edit-2" class="w-3 h-3"></i> Editar
                     </button>
-                    <!-- Botón Guardar (Oculto por defecto) -->
                     <button id="btnSave" class="hidden text-green-300 hover:text-green-200 transition flex items-center gap-1 text-xs bg-green-500/20 px-2 py-1 rounded-lg border border-green-500/30">
                         <i data-lucide="check" class="w-3 h-3"></i> Guardar
                     </button>
                 </div>
 
-                <!-- Vista de Tasas -->
+                <!-- Vista de Tasas (Modo Lectura) -->
                 <div id="viewRates" class="flex justify-between gap-1 sm:gap-2">
                     <div class="flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 bg-white/5 rounded-lg py-1.5 px-1">
                         <div class="bg-green-500/20 p-1 sm:p-1.5 rounded-lg text-green-300">
@@ -65,42 +64,30 @@
                     </div>
                 </div>
 
-                <!-- Vista de Edición (Oculta por defecto) -->
+                <!-- Vista de Edición (Modo Edición) -->
                 <div id="editRates" class="hidden flex gap-2">
                     <div class="flex-1">
                         <label class="text-[9px] sm:text-[10px] text-blue-200 uppercase tracking-wider block text-center mb-1">USD</label>
-                        <input 
-                            type="number" 
-                            id="inputManualUsd"
-                            class="w-full bg-white/20 border border-white/30 rounded px-1 py-1 text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-white/50 text-center"
-                        />
+                        <input type="number" id="inputManualUsd" class="w-full bg-white/20 border border-white/30 rounded px-1 py-1 text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-white/50 text-center"/>
                     </div>
                     <div class="flex-1">
                         <label class="text-[9px] sm:text-[10px] text-blue-200 uppercase tracking-wider block text-center mb-1">EUR</label>
-                        <input 
-                            type="number" 
-                            id="inputManualEur"
-                            class="w-full bg-white/20 border border-white/30 rounded px-1 py-1 text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-white/50 text-center"
-                        />
+                        <input type="number" id="inputManualEur" class="w-full bg-white/20 border border-white/30 rounded px-1 py-1 text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-white/50 text-center"/>
                     </div>
                     <div class="flex-1">
                         <label class="text-[9px] sm:text-[10px] text-blue-200 uppercase tracking-wider block text-center mb-1">USDT</label>
-                        <input 
-                            type="number" 
-                            id="inputManualUsdt"
-                            class="w-full bg-white/20 border border-white/30 rounded px-1 py-1 text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-white/50 text-center"
-                        />
+                        <input type="number" id="inputManualUsdt" class="w-full bg-white/20 border border-white/30 rounded px-1 py-1 text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-white/50 text-center"/>
                     </div>
                 </div>
                 
                 <div id="lastUpdated" class="mt-3 text-[10px] text-blue-200 text-right">
-                    Actualizando...
+                    Iniciando sistema...
                 </div>
             </div>
         </div>
 
         <div class="p-6">
-            <!-- Alerta de Error (Oculta por defecto) -->
+            <!-- Alerta de Error -->
             <div id="errorAlert" class="hidden mb-6 bg-red-50 text-red-600 p-3 rounded-xl flex items-start gap-3 text-sm border border-red-100">
                 <i data-lucide="alert-circle" class="w-[18px] h-[18px] shrink-0 mt-0.5"></i>
                 <p id="errorText"></p>
@@ -134,7 +121,7 @@
                 <div class="flex justify-center -my-3 relative z-10">
                     <button 
                         id="btnSwap"
-                        class="bg-blue-100 hover:bg-blue-200 text-blue-700 p-3 rounded-full border-4 border-white shadow-sm transition-transform hover:scale-105 active:scale-95"
+                        class="bg-blue-100 hover:bg-blue-200 text-blue-700 p-3 rounded-full border-4 border-white shadow-sm transition-transform hover:scale-105 active:scale-95 focus:outline-none"
                     >
                         <i data-lucide="arrow-right-left" class="w-5 h-5 rotate-90"></i>
                     </button>
@@ -161,8 +148,8 @@
             </div>
 
             <div class="mt-8 pt-4 border-t border-gray-100 text-center">
-                <p class="text-xs text-gray-400">
-                    Tasas provistas por DolarAPI (Oficial / Binance P2P). Se recomienda verificar antes de facturar.
+                <p class="text-[10px] text-gray-400">
+                    Tasas obtenidas del BCV Oficial y Mercado P2P. Verifique antes de facturar.
                 </p>
             </div>
         </div>
@@ -172,8 +159,8 @@
         // Inicializar iconos
         lucide.createIcons();
 
-        // Estado de la aplicación ampliado con USDT y valores base normalizados
-        let rates = { USD: 40.50, EUR: 43.20, USDT: 44.00 };
+        // Estado inicial de la aplicación (Precios realistas de referencia)
+        let rates = { USD: 39.50, EUR: 42.10, USDT: 43.00 };
         let isLoading = false;
         let isEditing = false;
 
@@ -187,7 +174,6 @@
         const errorAlert = document.getElementById('errorAlert');
         const errorText = document.getElementById('errorText');
         
-        // Elementos de edición
         const btnEdit = document.getElementById('btnEdit');
         const btnSave = document.getElementById('btnSave');
         const viewRates = document.getElementById('viewRates');
@@ -196,7 +182,6 @@
         const inputManualEur = document.getElementById('inputManualEur');
         const inputManualUsdt = document.getElementById('inputManualUsdt');
 
-        // Elementos de la calculadora
         const amountInput = document.getElementById('amountInput');
         const fromCurrency = document.getElementById('fromCurrency');
         const toCurrency = document.getElementById('toCurrency');
@@ -213,7 +198,7 @@
             }).format(value);
         };
 
-        // Función para calcular y actualizar resultado dinámico
+        // Función principal de cálculo
         const calculateAndRender = () => {
             const numAmount = parseFloat(amountInput.value) || 0;
             const from = fromCurrency.value;
@@ -222,17 +207,12 @@
             let result = 0;
 
             if (from === to) {
-                // Misma moneda
                 result = numAmount;
             } else if (to === 'VES') {
-                // De moneda extranjera a Bolívares
                 result = numAmount * rates[from];
             } else if (from === 'VES') {
-                // De Bolívares a moneda extranjera
                 result = numAmount / rates[to];
             } else {
-                // Cruzado entre monedas extranjeras (Ej: USD a USDT o EUR a USD)
-                // Se convierte primero a Bs base y luego a la destino
                 const amountInVes = numAmount * rates[from];
                 result = amountInVes / rates[to];
             }
@@ -240,7 +220,6 @@
             resultDisplay.textContent = formatCurrency(result, to);
         };
 
-        // Actualizar UI de tasas
         const updateRatesUI = (timeString) => {
             displayUsd.textContent = rates.USD.toFixed(2);
             displayEur.textContent = rates.EUR.toFixed(2);
@@ -249,98 +228,80 @@
             calculateAndRender();
         };
 
-        // Obtener tasas (NUEVO MÉTODO DIRECTO E INFALIBLE)
+        // Función de conexión para obtener tasas reales (Corregida)
         const fetchRates = async () => {
             if (isLoading) return;
             isLoading = true;
             refreshIcon.classList.add('animate-spin');
             errorAlert.classList.add('hidden');
-            lastUpdated.textContent = 'Conectando con el BCV...';
+            lastUpdated.textContent = 'Consultando mercados...';
 
             let updatedRates = { usd: null, eur: null, usdt: null };
+            let hasErrors = false;
 
-            try {
-                // ESTRATEGIA 1: Leer directamente la web del BCV saltándose las APIs de terceros.
-                // Usamos AllOrigins como puente para evitar el bloqueo del navegador.
-                const proxyUrl = 'https://api.allorigins.win/get?url=';
-                const bcvUrl = encodeURIComponent('https://www.bcv.org.ve/');
-                const res = await fetch(proxyUrl + bcvUrl);
-                const data = await res.json();
-        // Obtener tasas (BCV directo y USDT vía Yadio/Binance P2P)
-        const fetchRates = async () => {
-            if (isLoading) return;
-            isLoading = true;
-            refreshIcon.classList.add('animate-spin');
-            errorAlert.classList.add('hidden');
-            lastUpdated.textContent = 'Actualizando mercados...';
-
-            let updatedRates = { usd: null, eur: null, usdt: null };
-
-            // 1. OBTENER BCV OFICIAL (Vía lectura directa de la página web del BCV)
+            // 1. Obtener BCV Oficial leyendo la página
             try {
                 const proxyUrl = 'https://api.allorigins.win/get?url=';
                 const bcvUrl = encodeURIComponent('https://www.bcv.org.ve/');
                 const res = await fetch(proxyUrl + bcvUrl);
                 const data = await res.json();
                 
+                // Parseamos el HTML recibido
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(data.contents, 'text/html');
                 
+                // Buscamos los valores exactos
                 const usdText = doc.querySelector('#dolar strong')?.innerText?.trim().replace(',', '.');
                 const eurText = doc.querySelector('#euro strong')?.innerText?.trim().replace(',', '.');
                 
                 if (usdText && !isNaN(parseFloat(usdText))) updatedRates.usd = parseFloat(usdText);
                 if (eurText && !isNaN(parseFloat(eurText))) updatedRates.eur = parseFloat(eurText);
             } catch (e) {
-                console.warn("Fallo lectura del BCV, intentando respaldo...");
-                // Respaldo oficial si se cae la web del BCV
-                try {
-                    const usdRes = await fetch('https://ve.dolarapi.com/v1/dolares/oficial').then(r=>r.json());
-                    if (usdRes.promedio) updatedRates.usd = usdRes.promedio;
-                } catch(err){}
+                console.warn("Error leyendo BCV:", e);
+                hasErrors = true;
             }
 
-            // 2. OBTENER USDT REAL (Binance P2P vía Yadio)
-            // Yadio se conecta al libro de órdenes directo de Binance P2P sin hacer "promedios" raros.
+            // 2. Obtener USDT desde Yadio (Binance P2P Real)
             try {
                 const yadioRes = await fetch('https://api.yadio.io/exrates/USD');
                 if (yadioRes.ok) {
                     const yadioData = await yadioRes.json();
-                    // Yadio devuelve el valor de Binance P2P directamente en la ruta USD -> VES
                     if (yadioData.USD && yadioData.USD.VES) {
                         updatedRates.usdt = parseFloat(yadioData.USD.VES);
-                        console.log("USDT obtenido de Yadio (Binance P2P):", updatedRates.usdt);
                     }
                 }
             } catch (e) {
-                console.warn("Fallo lectura de Yadio, intentando respaldo para USDT...");
-                // Respaldo de USDT en caso extremo
-                try {
-                    const usdtRes = await fetch('https://ve.dolarapi.com/v1/dolares/cripto').then(r=>r.json());
-                    if (usdtRes.promedio) updatedRates.usdt = parseFloat(usdtRes.promedio);
-                } catch(err){}
+                console.warn("Error leyendo Yadio/USDT:", e);
+                hasErrors = true;
             }
 
-            // 3. APLICAR LOS CAMBIOS AL SISTEMA
-            if ((updatedRates.usd && updatedRates.usd > 0) || (updatedRates.usdt && updatedRates.usdt > 0)) {
-                if (updatedRates.usd) rates.USD = updatedRates.usd;
-                if (updatedRates.eur) rates.EUR = updatedRates.eur;
-                if (updatedRates.usdt) rates.USDT = updatedRates.usdt;
-                
-                const now = new Date();
-                const timeStr = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute:'2-digit' });
+            // 3. Aplicar resultados
+            let succesfulUpdate = false;
+            if (updatedRates.usd && updatedRates.usd > 0) { rates.USD = updatedRates.usd; succesfulUpdate = true; }
+            if (updatedRates.eur && updatedRates.eur > 0) { rates.EUR = updatedRates.eur; }
+            if (updatedRates.usdt && updatedRates.usdt > 0) { rates.USDT = updatedRates.usdt; succesfulUpdate = true; }
+
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute:'2-digit' });
+
+            if (succesfulUpdate) {
                 updateRatesUI(timeStr);
+                if (hasErrors) {
+                    // Actualizó al menos una, pero falló la otra
+                    errorText.textContent = 'Advertencia: Algunos mercados tardaron en responder. Revise las tasas.';
+                    errorAlert.classList.remove('hidden');
+                }
             } else {
-                errorText.textContent = 'No se pudo verificar la tasa actual en los mercados. Ingresa la tasa manualmente.';
+                errorText.textContent = 'No se pudo conectar a internet o los servidores fallaron. Por favor, ingrese los valores manualmente.';
                 errorAlert.classList.remove('hidden');
-                updateRatesUI('Modo Manual Recomendado');
+                updateRatesUI('Modo Manual Sugerido');
             }
 
             isLoading = false;
             refreshIcon.classList.remove('animate-spin');
         };
 
-        // Eventos de la calculadora
+        // Configurar Eventos
         amountInput.addEventListener('input', calculateAndRender);
         fromCurrency.addEventListener('change', calculateAndRender);
         toCurrency.addEventListener('change', calculateAndRender);
@@ -354,12 +315,12 @@
 
         btnRefresh.addEventListener('click', fetchRates);
 
-        // Lógica de edición manual
+        // Eventos de edición Manual
         btnEdit.addEventListener('click', () => {
             isEditing = true;
-            inputManualUsd.value = rates.USD;
-            inputManualEur.value = rates.EUR;
-            inputManualUsdt.value = rates.USDT; // Nuevo input
+            inputManualUsd.value = rates.USD.toFixed(2);
+            inputManualEur.value = rates.EUR.toFixed(2);
+            inputManualUsdt.value = rates.USDT.toFixed(2);
             
             btnEdit.classList.add('hidden');
             btnSave.classList.remove('hidden');
@@ -371,7 +332,7 @@
         btnSave.addEventListener('click', () => {
             const newUsd = parseFloat(inputManualUsd.value);
             const newEur = parseFloat(inputManualEur.value);
-            const newUsdt = parseFloat(inputManualUsdt.value); // Nuevo valor guardado
+            const newUsdt = parseFloat(inputManualUsdt.value);
 
             if (!isNaN(newUsd) && !isNaN(newEur) && !isNaN(newUsdt)) {
                 rates.USD = newUsd;
@@ -384,11 +345,11 @@
                 viewRates.classList.remove('hidden');
                 editRates.classList.add('hidden');
                 
-                updateRatesUI('Manual');
+                updateRatesUI('Edición Manual');
             }
         });
 
-        // Iniciar app
+        // Iniciar la aplicación al cargar
         fetchRates();
 
     </script>
