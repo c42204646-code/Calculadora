@@ -266,8 +266,23 @@
                 const bcvUrl = encodeURIComponent('https://www.bcv.org.ve/');
                 const res = await fetch(proxyUrl + bcvUrl);
                 const data = await res.json();
+        // Obtener tasas (BCV directo y USDT vía Yadio/Binance P2P)
+        const fetchRates = async () => {
+            if (isLoading) return;
+            isLoading = true;
+            refreshIcon.classList.add('animate-spin');
+            errorAlert.classList.add('hidden');
+            lastUpdated.textContent = 'Actualizando mercados...';
+
+            let updatedRates = { usd: null, eur: null, usdt: null };
+
+            // 1. OBTENER BCV OFICIAL (Vía lectura directa de la página web del BCV)
+            try {
+                const proxyUrl = 'https://api.allorigins.win/get?url=';
+                const bcvUrl = encodeURIComponent('https://www.bcv.org.ve/');
+                const res = await fetch(proxyUrl + bcvUrl);
+                const data = await res.json();
                 
-                // Analizamos el HTML real de la página del BCV
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(data.contents, 'text/html');
                 
@@ -277,53 +292,38 @@
                 if (usdText && !isNaN(parseFloat(usdText))) updatedRates.usd = parseFloat(usdText);
                 if (eurText && !isNaN(parseFloat(eurText))) updatedRates.eur = parseFloat(eurText);
             } catch (e) {
-                console.warn("Fallo lectura directa del BCV, intentando respaldo...", e);
-            }
-
-            // ESTRATEGIA 2: Si la página del BCV está caída, usamos DolarAPI como respaldo
-            if (!updatedRates.usd) {
+                console.warn("Fallo lectura del BCV, intentando respaldo...");
+                // Respaldo oficial si se cae la web del BCV
                 try {
                     const usdRes = await fetch('https://ve.dolarapi.com/v1/dolares/oficial').then(r=>r.json());
-                    const eurRes = await fetch('https://ve.dolarapi.com/v1/euros/oficial').then(r=>r.json());
                     if (usdRes.promedio) updatedRates.usd = usdRes.promedio;
-                    if (eurRes.promedio) updatedRates.eur = eurRes.promedio;
-                } catch (e) {
-                    console.warn("Fallo DolarAPI.", e);
-                }
+                } catch(err){}
             }
 
-            // OBTENER USDT: Estrategia múltiple para Binance P2P
-            // Intentará buscar en las 3 APIs comunitarias más fuertes de Venezuela
-            const usdtEndpoints = [
-                // 1. PyDolarVenezuela (Actualmente la más precisa para P2P)
-                { url: 'https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=binance', getPrice: (d) => d?.monitors?.binance?.price },
-                // 2. DolarAPI (Ruta Cripto)
-                { url: 'https://ve.dolarapi.com/v1/dolares/cripto', getPrice: (d) => d?.promedio },
-                // 3. DolarAPI (Ruta Binance tradicional)
-                { url: 'https://ve.dolarapi.com/v1/dolares/binance', getPrice: (d) => d?.promedio }
-            ];
-
-            for (let api of usdtEndpoints) {
-                try {
-                    const res = await fetch(api.url);
-                    if (res.ok) {
-                        const data = await res.json();
-                        const price = api.getPrice(data);
-                        // Verificamos que el precio sea válido y realista
-                        if (price && parseFloat(price) > 10) {
-                            updatedRates.usdt = parseFloat(price);
-                            console.log(`USDT actualizado correctamente desde: ${api.url}`);
-                            break; // Si encontró el precio, detiene la búsqueda
-                        }
+            // 2. OBTENER USDT REAL (Binance P2P vía Yadio)
+            // Yadio se conecta al libro de órdenes directo de Binance P2P sin hacer "promedios" raros.
+            try {
+                const yadioRes = await fetch('https://api.yadio.io/exrates/USD');
+                if (yadioRes.ok) {
+                    const yadioData = await yadioRes.json();
+                    // Yadio devuelve el valor de Binance P2P directamente en la ruta USD -> VES
+                    if (yadioData.USD && yadioData.USD.VES) {
+                        updatedRates.usdt = parseFloat(yadioData.USD.VES);
+                        console.log("USDT obtenido de Yadio (Binance P2P):", updatedRates.usdt);
                     }
-                } catch (e) {
-                    console.warn(`Intento fallido de USDT en: ${api.url}`);
                 }
+            } catch (e) {
+                console.warn("Fallo lectura de Yadio, intentando respaldo para USDT...");
+                // Respaldo de USDT en caso extremo
+                try {
+                    const usdtRes = await fetch('https://ve.dolarapi.com/v1/dolares/cripto').then(r=>r.json());
+                    if (usdtRes.promedio) updatedRates.usdt = parseFloat(usdtRes.promedio);
+                } catch(err){}
             }
 
-            // APLICAR LOS CAMBIOS
-            if (updatedRates.usd && updatedRates.usd > 0) {
-                rates.USD = updatedRates.usd;
+            // 3. APLICAR LOS CAMBIOS AL SISTEMA
+            if ((updatedRates.usd && updatedRates.usd > 0) || (updatedRates.usdt && updatedRates.usdt > 0)) {
+                if (updatedRates.usd) rates.USD = updatedRates.usd;
                 if (updatedRates.eur) rates.EUR = updatedRates.eur;
                 if (updatedRates.usdt) rates.USDT = updatedRates.usdt;
                 
@@ -331,7 +331,7 @@
                 const timeStr = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute:'2-digit' });
                 updateRatesUI(timeStr);
             } else {
-                errorText.textContent = 'No se pudo verificar la tasa actual. Usa el botón "Editar" para ingresarla manualmente.';
+                errorText.textContent = 'No se pudo verificar la tasa actual en los mercados. Ingresa la tasa manualmente.';
                 errorAlert.classList.remove('hidden');
                 updateRatesUI('Modo Manual Recomendado');
             }
