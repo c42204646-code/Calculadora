@@ -292,12 +292,33 @@
                 }
             }
 
-            // OBTENER USDT: Consultar DolarApi para el promedio de Binance
-            try {
-                const usdtRes = await fetch('https://ve.dolarapi.com/v1/dolares/binance').then(r=>r.json());
-                if (usdtRes.promedio) updatedRates.usdt = usdtRes.promedio;
-            } catch (e) {
-                console.warn("Fallo USDT DolarAPI:", e);
+            // OBTENER USDT: Estrategia múltiple para Binance P2P
+            // Intentará buscar en las 3 APIs comunitarias más fuertes de Venezuela
+            const usdtEndpoints = [
+                // 1. PyDolarVenezuela (Actualmente la más precisa para P2P)
+                { url: 'https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=binance', getPrice: (d) => d?.monitors?.binance?.price },
+                // 2. DolarAPI (Ruta Cripto)
+                { url: 'https://ve.dolarapi.com/v1/dolares/cripto', getPrice: (d) => d?.promedio },
+                // 3. DolarAPI (Ruta Binance tradicional)
+                { url: 'https://ve.dolarapi.com/v1/dolares/binance', getPrice: (d) => d?.promedio }
+            ];
+
+            for (let api of usdtEndpoints) {
+                try {
+                    const res = await fetch(api.url);
+                    if (res.ok) {
+                        const data = await res.json();
+                        const price = api.getPrice(data);
+                        // Verificamos que el precio sea válido y realista
+                        if (price && parseFloat(price) > 10) {
+                            updatedRates.usdt = parseFloat(price);
+                            console.log(`USDT actualizado correctamente desde: ${api.url}`);
+                            break; // Si encontró el precio, detiene la búsqueda
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`Intento fallido de USDT en: ${api.url}`);
+                }
             }
 
             // APLICAR LOS CAMBIOS
