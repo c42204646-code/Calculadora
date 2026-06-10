@@ -172,8 +172,8 @@
         // Inicializar iconos
         lucide.createIcons();
 
-        // Estado de la aplicación ampliado con USDT
-        let rates = { USD: 36.50, EUR: 39.20, USDT: 40.00 };
+        // Estado de la aplicación ampliado con USDT y ajustado a la realidad actual
+        let rates = { USD: 565.00, EUR: 655.00, USDT: 770.00 };
         let isLoading = false;
         let isEditing = false;
 
@@ -249,7 +249,7 @@
             calculateAndRender();
         };
 
-        // Obtener tasas de la API (incluyendo Binance para USDT)
+        // Obtener tasas de la API (Actualizado a PyDolarVenezuela)
         const fetchRates = async () => {
             if (isLoading) return;
             isLoading = true;
@@ -258,36 +258,59 @@
             lastUpdated.textContent = 'Actualizando...';
 
             try {
-                // Hacemos las llamadas. Capturamos si la de Binance falla individualmente para no romper la app
-                const [usdRes, eurRes, usdtRes] = await Promise.all([
-                    fetch('https://ve.dolarapi.com/v1/dolares/oficial'),
-                    fetch('https://ve.dolarapi.com/v1/euros/oficial'),
-                    fetch('https://ve.dolarapi.com/v1/dolares/binance').catch(() => null)
+                // Función inteligente para extraer el precio sin depender de una estructura fija
+                const extractPrice = (obj, targetKeys) => {
+                    if (!obj || typeof obj !== 'object') return null;
+                    for (const key in obj) {
+                        if (targetKeys.includes(key.toLowerCase())) {
+                            if (typeof obj[key] === 'number') return obj[key];
+                            if (obj[key] && obj[key].price !== undefined) return parseFloat(obj[key].price);
+                            if (obj[key] && obj[key].value !== undefined) return parseFloat(obj[key].value);
+                        }
+                        const nested = extractPrice(obj[key], targetKeys);
+                        if (nested !== null) return nested;
+                    }
+                    return null;
+                };
+
+                // Conectamos a PyDolarVenezuela, la API más activa y precisa actualmente
+                const [bcvRes, binanceRes] = await Promise.all([
+                    fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv').catch(() => null),
+                    fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=binance').catch(() => null)
                 ]);
 
-                if (!usdRes.ok || !eurRes.ok) throw new Error('Fallo del servidor principal');
+                let isUpdated = false;
 
-                const usdData = await usdRes.json();
-                const eurData = await eurRes.json();
-
-                rates.USD = usdData.promedio;
-                rates.EUR = eurData.promedio;
-
-                // Si Binance respondió bien, actualizamos el USDT
-                if (usdtRes && usdtRes.ok) {
-                    const usdtData = await usdtRes.json();
-                    rates.USDT = usdtData.promedio;
+                // Procesar datos del BCV
+                if (bcvRes && bcvRes.ok) {
+                    const bcvData = await bcvRes.json();
+                    const usdVal = extractPrice(bcvData, ['usd', 'dolar']);
+                    const eurVal = extractPrice(bcvData, ['eur', 'euro']);
+                    
+                    if (usdVal && usdVal > 0) { rates.USD = usdVal; isUpdated = true; }
+                    if (eurVal && eurVal > 0) { rates.EUR = eurVal; }
                 }
 
-                const now = new Date();
-                const timeStr = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute:'2-digit' });
-                updateRatesUI(timeStr);
+                // Procesar datos de Binance/USDT
+                if (binanceRes && binanceRes.ok) {
+                    const binData = await binanceRes.json();
+                    const usdtVal = extractPrice(binData, ['usdt', 'binance', 'enparalelovzla', 'promedio']);
+                    if (usdtVal && usdtVal > 0) rates.USDT = usdtVal;
+                }
+
+                if (isUpdated) {
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute:'2-digit' });
+                    updateRatesUI(timeStr);
+                } else {
+                    throw new Error('No se pudo leer el formato de la API');
+                }
 
             } catch (err) {
-                console.error(err);
-                errorText.textContent = 'Sin conexión. Usa el botón "Editar" para ingresar la tasa manual.';
+                console.error("Error con la API:", err);
+                errorText.textContent = 'La conexión automática falló. Mostrando tasas de respaldo. Usa "Editar" para ajustarlas manualmente.';
                 errorAlert.classList.remove('hidden');
-                updateRatesUI('Error de red');
+                updateRatesUI('Modo Respaldo');
             } finally {
                 isLoading = false;
                 refreshIcon.classList.remove('animate-spin');
