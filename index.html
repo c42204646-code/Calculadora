@@ -131,6 +131,7 @@
                 <div class="space-y-2">
                     <label class="text-sm font-semibold text-gray-500">Resultado equivalente</label>
                     <div class="relative">
+                        <!-- El contenedor permite scroll horizontal (touch) para números gigantes -->
                         <div id="resultDisplay" class="w-full text-xl sm:text-2xl md:text-3xl font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-2xl py-4 pl-3 sm:pl-4 pr-[100px] sm:pr-[110px] overflow-x-auto whitespace-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                             0.00
                         </div>
@@ -159,7 +160,7 @@
         // Inicializar iconos
         lucide.createIcons();
 
-        // Estado inicial de la aplicación (Precios realistas de referencia)
+        // Estado inicial de la aplicación (Precios de respaldo en caso de desconexión)
         let rates = { USD: 39.50, EUR: 42.10, USDT: 43.00 };
         let isLoading = false;
         let isEditing = false;
@@ -188,7 +189,7 @@
         const btnSwap = document.getElementById('btnSwap');
         const resultDisplay = document.getElementById('resultDisplay');
 
-        // Formateador de moneda
+        // Formateador de moneda (estilo Venezuela)
         const formatCurrency = (value, currency) => {
             return new Intl.NumberFormat('es-VE', {
                 style: 'currency',
@@ -198,7 +199,7 @@
             }).format(value);
         };
 
-        // Función principal de cálculo
+        // Función principal de cálculo bidireccional y cruzado
         const calculateAndRender = () => {
             const numAmount = parseFloat(amountInput.value) || 0;
             const from = fromCurrency.value;
@@ -228,7 +229,7 @@
             calculateAndRender();
         };
 
-        // Función de conexión para obtener tasas reales (Corregida)
+        // Función de conexión HÍBRIDA: DolarAPI (Nacional) + Yadio (Cripto P2P)
         const fetchRates = async () => {
             if (isLoading) return;
             isLoading = true;
@@ -239,29 +240,27 @@
             let updatedRates = { usd: null, eur: null, usdt: null };
             let hasErrors = false;
 
-            // 1. Obtener BCV Oficial leyendo la página
+            // 1. Obtener BCV Oficial usando DolarAPI (Rápido y confiable para lo nacional)
             try {
-                const proxyUrl = 'https://api.allorigins.win/get?url=';
-                const bcvUrl = encodeURIComponent('https://www.bcv.org.ve/');
-                const res = await fetch(proxyUrl + bcvUrl);
-                const data = await res.json();
+                const [usdRes, eurRes] = await Promise.all([
+                    fetch('https://ve.dolarapi.com/v1/dolares/oficial'),
+                    fetch('https://ve.dolarapi.com/v1/euros/oficial')
+                ]);
                 
-                // Parseamos el HTML recibido
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(data.contents, 'text/html');
-                
-                // Buscamos los valores exactos
-                const usdText = doc.querySelector('#dolar strong')?.innerText?.trim().replace(',', '.');
-                const eurText = doc.querySelector('#euro strong')?.innerText?.trim().replace(',', '.');
-                
-                if (usdText && !isNaN(parseFloat(usdText))) updatedRates.usd = parseFloat(usdText);
-                if (eurText && !isNaN(parseFloat(eurText))) updatedRates.eur = parseFloat(eurText);
+                if (usdRes.ok) {
+                    const usdData = await usdRes.json();
+                    updatedRates.usd = usdData.promedio;
+                }
+                if (eurRes.ok) {
+                    const eurData = await eurRes.json();
+                    updatedRates.eur = eurData.promedio;
+                }
             } catch (e) {
-                console.warn("Error leyendo BCV:", e);
+                console.warn("Error leyendo API Nacional (BCV):", e);
                 hasErrors = true;
             }
 
-            // 2. Obtener USDT desde Yadio (Binance P2P Real)
+            // 2. Obtener USDT desde Yadio (Precio real de Binance P2P)
             try {
                 const yadioRes = await fetch('https://api.yadio.io/exrates/USD');
                 if (yadioRes.ok) {
@@ -271,11 +270,11 @@
                     }
                 }
             } catch (e) {
-                console.warn("Error leyendo Yadio/USDT:", e);
+                console.warn("Error leyendo Yadio (USDT):", e);
                 hasErrors = true;
             }
 
-            // 3. Aplicar resultados
+            // 3. Aplicar resultados a la calculadora (manteniendo el valor viejo si uno falla)
             let succesfulUpdate = false;
             if (updatedRates.usd && updatedRates.usd > 0) { rates.USD = updatedRates.usd; succesfulUpdate = true; }
             if (updatedRates.eur && updatedRates.eur > 0) { rates.EUR = updatedRates.eur; }
@@ -287,12 +286,12 @@
             if (succesfulUpdate) {
                 updateRatesUI(timeStr);
                 if (hasErrors) {
-                    // Actualizó al menos una, pero falló la otra
-                    errorText.textContent = 'Advertencia: Algunos mercados tardaron en responder. Revise las tasas.';
+                    // Si falla solo una (ej. BCV funciona pero Yadio no), avisa pero sigue trabajando
+                    errorText.textContent = 'Aviso: Algún mercado tardó en responder. Comprueba las tasas.';
                     errorAlert.classList.remove('hidden');
                 }
             } else {
-                errorText.textContent = 'No se pudo conectar a internet o los servidores fallaron. Por favor, ingrese los valores manualmente.';
+                errorText.textContent = 'Error de conexión. Por favor, usa el botón "Editar" para ingresar los valores manualmente.';
                 errorAlert.classList.remove('hidden');
                 updateRatesUI('Modo Manual Sugerido');
             }
@@ -301,7 +300,7 @@
             refreshIcon.classList.remove('animate-spin');
         };
 
-        // Configurar Eventos
+        // Configurar Eventos de la calculadora
         amountInput.addEventListener('input', calculateAndRender);
         fromCurrency.addEventListener('change', calculateAndRender);
         toCurrency.addEventListener('change', calculateAndRender);
@@ -349,7 +348,7 @@
             }
         });
 
-        // Iniciar la aplicación al cargar
+        // Iniciar la aplicación automáticamente al cargar
         fetchRates();
 
     </script>
